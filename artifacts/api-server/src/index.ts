@@ -1,6 +1,5 @@
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
-import { connectToWhatsApp } from "./bot/connection.js";
 import { getDb } from "./bot/db/database.js";
 
 const rawPort = process.env["PORT"];
@@ -25,18 +24,7 @@ app.listen(port, async (err?: Error) => {
   }
   logger.info({ port }, "Server listening");
 
-  const phone = process.env["BOT_PHONE_NUMBER"];
-
-  if (phone) {
-    try {
-      logger.info({ phone }, "BOT_PHONE_NUMBER found — auto-starting bot...");
-      await connectToWhatsApp(phone);
-    } catch (botErr) {
-      logger.error({ botErr }, "Failed to auto-start bot (user can pair via /pair page)");
-    }
-  } else {
-    logger.info("No BOT_PHONE_NUMBER set — open the /pair page to connect the bot");
-  }
+  logger.info("Open the /pair page to connect the bot");
 
   startKeepAlive();
 });

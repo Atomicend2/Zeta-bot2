@@ -128,8 +128,8 @@ function buildHtml(defaultPhone: string): string {
 
   <section id="secForm">
     <label for="phoneInput">WhatsApp Number (with country code, no + or spaces)</label>
-    <input id="phoneInput" type="text" placeholder="e.g. 2250716298719" value="${defaultPhone}" autocomplete="off" inputmode="numeric" />
-    <p class="hint-text">Example: Ivory Coast +225 → 2250716298719</p>
+    <input id="phoneInput" type="text" placeholder="e.g. 2250716298719" autocomplete="off" inputmode="numeric" />
+    <p class="hint-text">⚠️ Enter the number whose WhatsApp you will open to enter the code. No +, no spaces.</p>
     <button id="startBtn" onclick="startPairing()">Generate Pairing Code</button>
     <p class="err" id="errMsg"></p>
   </section>
@@ -142,10 +142,10 @@ function buildHtml(defaultPhone: string): string {
     </div>
     <div class="steps">
       <p>
-        1. Open WhatsApp on <strong>the phone with this number</strong><br/>
-        2. Tap <strong>Linked Devices → Link a Device</strong><br/>
+        1. Open WhatsApp on <strong>the phone that owns the number you entered</strong><br/>
+        2. Tap <strong>⋮ Menu → Linked Devices → Link a Device</strong><br/>
         3. Tap <strong>"Link with phone number instead"</strong><br/>
-        4. Enter the code above
+        4. Type the 8-character code above — you have ~2 minutes
       </p>
     </div>
   </section>
@@ -290,10 +290,9 @@ function buildHtml(defaultPhone: string): string {
 </html>`;
 }
 
-router.get(["/", "/pair"], (req, res) => {
-  const defaultPhone = process.env["BOT_PHONE_NUMBER"] || "";
+router.get(["/", "/pair"], (_req, res) => {
   res.setHeader("Content-Type", "text/html");
-  res.send(buildHtml(defaultPhone));
+  res.send(buildHtml(""));
 });
 
 export { router as pairRouter };
