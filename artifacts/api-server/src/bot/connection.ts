@@ -6,13 +6,10 @@ import {
   fetchLatestBaileysVersion,
   Browsers,
   type WASocket,
-  type BaileysEventMap,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import path from "path";
 import fs from "fs";
-import readline from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "url";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { logger } from "../lib/logger.js";
@@ -34,30 +31,41 @@ let sock: WASocket | null = null;
 let isConnected = false;
 let isConnecting = false;
 let pairingCode: string | null = null;
+let pairingExpired = false;
 let reconnectAttempts = 0;
 let connectionGeneration = 0;
 const MAX_RECONNECT_DELAY = 30000;
 const STABLE_CONNECTION_MS = 30000;
 const replyContext = new AsyncLocalStorage<any>();
 
-type ConnectOptions = {
-  promptForPhone?: boolean;
+const silentLogger = {
+  level: "silent" as const,
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  fatal: () => {},
+  child: (): any => silentLogger,
 };
 
-export function getSocket(): WASocket | null {
-  return sock;
-}
+export function getSocket(): WASocket | null { return sock; }
+export function isSocketConnected(): boolean { return isConnected; }
+export function isSocketConnecting(): boolean { return isConnecting; }
+export function getPairingCode(): string | null { return pairingCode; }
+export function isPairingExpired(): boolean { return pairingExpired; }
 
-export function isSocketConnected(): boolean {
-  return isConnected;
-}
-
-export function isSocketConnecting(): boolean {
-  return isConnecting;
-}
-
-export function getPairingCode(): string | null {
-  return pairingCode;
+export function resetConnection(): void {
+  if (sock) {
+    try { sock.end(undefined); } catch {}
+    sock = null;
+  }
+  isConnected = false;
+  isConnecting = false;
+  pairingCode = null;
+  pairingExpired = false;
+  reconnectAttempts = 0;
+  connectionGeneration++;
 }
 
 export async function runWithReplyContext<T>(msg: any, fn: () => Promise<T>): Promise<T> {
@@ -90,41 +98,19 @@ function getRememberedPairingPhoneNumber(): string | undefined {
   }
 }
 
-async function askForPairingPhoneNumber(): Promise<string | undefined> {
-  if (!process.stdin.isTTY) {
-    logger.warn("No interactive terminal detected (running on a server/cloud); skipping phone number prompt. Set BOT_PHONE_NUMBER env var to auto-pair.");
-    return undefined;
-  }
-  const rl = readline.createInterface({ input, output });
-  try {
-    const answer = await rl.question("Enter WhatsApp phone number to pair with country code, or press Enter to skip: ");
-    return normalizePhoneNumber(answer);
-  } finally {
-    rl.close();
-  }
-}
-
-export async function connectToWhatsApp(phoneNumber?: string, options: ConnectOptions = {}): Promise<WASocket> {
+export async function connectToWhatsApp(phoneNumber?: string): Promise<WASocket> {
   if (sock && (isConnected || isConnecting)) {
     return sock;
   }
+
   isConnecting = true;
+  pairingExpired = false;
   const generation = ++connectionGeneration;
+
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
   const browser = Browsers.ubuntu("Chrome");
   logger.info({ version, isLatest, browser }, "Using WhatsApp Web pairing identity");
-
-  const silentLogger = {
-    level: "silent" as const,
-    trace: () => {},
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    fatal: () => {},
-    child: () => silentLogger,
-  };
 
   sock = makeWASocket({
     version,
@@ -146,21 +132,20 @@ export async function connectToWhatsApp(phoneNumber?: string, options: ConnectOp
   });
 
   if (!state.creds.registered) {
-    const normalizedPhoneNumber =
-      rememberPairingPhoneNumber(phoneNumber) ||
-      getRememberedPairingPhoneNumber() ||
-      (options.promptForPhone === false ? undefined : await askForPairingPhoneNumber());
+    const phone =
+      (phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined) ||
+      getRememberedPairingPhoneNumber();
 
-    if (!normalizedPhoneNumber) {
-      logger.warn("No phone number provided; skipping pairing code request");
+    if (!phone) {
+      logger.warn("No phone number provided; skipping pairing code request. Use the /pair page to pair.");
     } else {
-      rememberPairingPhoneNumber(normalizedPhoneNumber);
+      rememberPairingPhoneNumber(phone);
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try {
-        const code = await sock.requestPairingCode(normalizedPhoneNumber);
+        const code = await sock.requestPairingCode(phone);
         pairingCode = code;
-        logger.info({ code }, "Pairing code generated");
-        console.log(`WhatsApp pairing code: ${code}`);
+        logger.info({ code }, "Pairing code generated — enter it in WhatsApp within 2 minutes");
+        console.log(`\n=== WhatsApp pairing code: ${code} ===\n`);
       } catch (err) {
         logger.error({ err }, "Failed to request pairing code");
       }
@@ -176,37 +161,63 @@ export async function connectToWhatsApp(phoneNumber?: string, options: ConnectOp
       if (generation !== connectionGeneration) return;
       isConnected = false;
       isConnecting = false;
-      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      const reason = (lastDisconnect?.error as any)?.message || (lastDisconnect?.error as Boom)?.output?.payload?.message || "unknown";
-      const shouldReconnect =
-        statusCode !== DisconnectReason.loggedOut;
+      pairingCode = null;
 
-      if (shouldReconnect) {
+      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+      const reason =
+        (lastDisconnect?.error as any)?.message ||
+        (lastDisconnect?.error as Boom)?.output?.payload?.message ||
+        "unknown";
+
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+      const isPairingTimeout = statusCode === 408 || reason?.includes("QR refs") || reason?.includes("timed out");
+
+      if (isLoggedOut) {
+        logger.info("Logged out from WhatsApp — clearing session");
+        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+        fs.mkdirSync(AUTH_DIR, { recursive: true });
+        pairingExpired = false;
+        return;
+      }
+
+      const { state } = await useMultiFileAuthState(AUTH_DIR);
+
+      if (!state.creds.registered && isPairingTimeout) {
+        logger.warn({ statusCode, reason }, "Pairing code expired — waiting for user to retry on /pair page");
+        pairingExpired = true;
+        sock = null;
+        return;
+      }
+
+      if (state.creds.registered) {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
         reconnectAttempts++;
-        logger.warn({ delay, attempt: reconnectAttempts, statusCode, reason }, "WhatsApp connection closed; reconnecting");
+        logger.warn({ delay, attempt: reconnectAttempts, statusCode, reason }, "Connection lost — reconnecting automatically");
         setTimeout(() => {
           if (generation === connectionGeneration && !isConnected && !isConnecting) {
             connectToWhatsApp();
           }
         }, delay);
       } else {
-        logger.info("Logged out from WhatsApp");
-        pairingCode = null;
-        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-        fs.mkdirSync(AUTH_DIR, { recursive: true });
+        logger.warn({ statusCode, reason }, "Connection closed before pairing — waiting for user to retry");
+        pairingExpired = true;
+        sock = null;
       }
+
     } else if (connection === "open") {
       if (generation !== connectionGeneration) return;
       isConnected = true;
       isConnecting = false;
       pairingCode = null;
+      pairingExpired = false;
+      reconnectAttempts = 0;
       logger.info("Connected to WhatsApp successfully");
       setTimeout(() => {
         if (generation === connectionGeneration && isConnected) {
           reconnectAttempts = 0;
         }
       }, STABLE_CONNECTION_MS);
+
     } else if (connection === "connecting") {
       if (generation !== connectionGeneration) return;
       isConnecting = true;
@@ -257,7 +268,7 @@ async function sendWithRetry(fn: () => Promise<any>, retries = 4): Promise<any> 
         err?.data === 429;
       if (isRateLimit && attempt < retries) {
         const delay = Math.min(2000 * Math.pow(2, attempt), 30000);
-        logger.warn({ attempt, delay, jid: err?.jid }, "Rate-overlimit hit, retrying after delay");
+        logger.warn({ attempt, delay }, "Rate-overlimit hit, retrying after delay");
         await new Promise((r) => setTimeout(r, delay));
         continue;
       }

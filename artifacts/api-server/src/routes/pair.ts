@@ -2,228 +2,298 @@ import { Router } from "express";
 
 const router = Router();
 
-const HTML = `<!DOCTYPE html>
+function buildHtml(defaultPhone: string): string {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Zeta Bot — Pair</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       min-height: 100vh;
-      background: linear-gradient(135deg, #0f0f1a 0%, #1a0a2e 50%, #0a1628 100%);
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a0a2e 55%, #0a1628 100%);
       display: flex; align-items: center; justify-content: center;
       font-family: 'Segoe UI', system-ui, sans-serif;
-      color: #e2e8f0;
+      color: #e2e8f0; padding: 20px;
     }
     .card {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 40px 36px;
-      width: 100%; max-width: 440px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      border-radius: 22px;
+      padding: 44px 40px;
+      width: 100%; max-width: 460px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
     }
-    .logo {
-      text-align: center; margin-bottom: 28px;
-    }
-    .logo h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; color: #a78bfa; }
-    .logo p  { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: 4px; color: #a78bfa; }
+    .logo p  { font-size: 0.83rem; color: #64748b; margin-top: 6px; letter-spacing: 1px; }
 
-    .status-badge {
+    .badge-row { display: flex; justify-content: center; margin-bottom: 28px; }
+    .badge {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 600;
-      margin-bottom: 24px;
+      padding: 7px 16px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+      letter-spacing: 0.5px;
     }
-    .status-badge.connected    { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
-    .status-badge.connecting   { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
-    .status-badge.disconnected { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    .dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .badge.disconnected { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .badge.connecting   { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .badge.pairing      { background: rgba(124,58,237,0.2);  color: #c4b5fd; border: 1px solid rgba(124,58,237,0.5); }
+    .badge.connected    { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+    .badge.expired      { background: rgba(239,68,68,0.12);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .pulse { animation: blink 1.2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
 
-    label { display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 6px; }
+    section { display: none; }
+    section.visible { display: block; }
+
+    label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 7px; font-weight: 600; letter-spacing: 0.3px; }
     input[type=text] {
-      width: 100%; padding: 12px 16px; border-radius: 10px;
+      width: 100%; padding: 13px 16px; border-radius: 11px;
       background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
-      color: #e2e8f0; font-size: 0.95rem; outline: none;
-      transition: border-color 0.2s;
+      color: #f1f5f9; font-size: 1rem; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    input[type=text]:focus { border-color: #7c3aed; }
+    input[type=text]:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
     input[type=text]::placeholder { color: #475569; }
 
+    .hint-text { font-size: 0.75rem; color: #475569; margin-top: 6px; }
+
     button {
-      width: 100%; margin-top: 14px; padding: 13px;
+      width: 100%; margin-top: 16px; padding: 14px;
       background: linear-gradient(135deg, #7c3aed, #4f46e5);
-      border: none; border-radius: 10px; color: #fff;
-      font-size: 1rem; font-weight: 700; cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      border: none; border-radius: 11px; color: #fff;
+      font-size: 0.95rem; font-weight: 800; cursor: pointer; letter-spacing: 0.5px;
+      transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.4);
     }
-    button:hover  { opacity: 0.9; }
+    button:hover  { opacity: 0.88; box-shadow: 0 6px 24px rgba(124,58,237,0.5); }
     button:active { transform: scale(0.98); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
 
-    .code-box {
-      margin-top: 28px; padding: 24px; border-radius: 14px;
-      background: rgba(124,58,237,0.15); border: 2px solid rgba(124,58,237,0.5);
+    .err { font-size: 0.8rem; color: #f87171; margin-top: 10px; min-height: 18px; text-align: center; }
+
+    .code-wrap {
+      margin-top: 28px; padding: 28px 24px; border-radius: 16px;
+      background: rgba(124,58,237,0.12); border: 2px solid rgba(124,58,237,0.45);
       text-align: center;
     }
-    .code-box .label { font-size: 0.78rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
-    .code-box .code  { font-size: 2.4rem; font-weight: 900; letter-spacing: 8px; color: #c4b5fd; font-family: monospace; }
-    .code-box .hint  { font-size: 0.78rem; color: #94a3b8; margin-top: 10px; line-height: 1.5; }
+    .code-label { font-size: 0.72rem; color: #a78bfa; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; font-weight: 700; }
+    .code-value { font-size: 2.6rem; font-weight: 900; letter-spacing: 10px; color: #ddd6fe; font-family: 'Courier New', monospace; }
+    .code-timer { font-size: 0.78rem; color: #94a3b8; margin-top: 12px; }
+    .code-timer span { color: #fbbf24; font-weight: 700; }
 
-    .connected-box {
-      margin-top: 28px; padding: 20px; border-radius: 14px;
-      background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+    .steps {
+      margin-top: 20px; padding: 16px 18px; border-radius: 12px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    }
+    .steps p { font-size: 0.78rem; color: #64748b; line-height: 1.8; }
+    .steps strong { color: #94a3b8; }
+
+    .connected-wrap {
+      margin-top: 28px; padding: 28px 24px; border-radius: 16px;
+      background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25);
       text-align: center;
     }
-    .connected-box .icon  { font-size: 2.5rem; }
-    .connected-box .name  { font-size: 1rem; color: #4ade80; font-weight: 700; margin-top: 8px; }
-    .connected-box .id    { font-size: 0.78rem; color: #94a3b8; margin-top: 4px; }
+    .connected-icon { font-size: 3rem; }
+    .connected-name { font-size: 1.1rem; color: #4ade80; font-weight: 800; margin-top: 10px; }
+    .connected-id   { font-size: 0.78rem; color: #64748b; margin-top: 5px; }
 
-    .msg { margin-top: 12px; font-size: 0.82rem; text-align: center; color: #f87171; min-height: 18px; }
-    hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0; }
-    .instructions { font-size: 0.8rem; color: #64748b; line-height: 1.7; }
-    .instructions ol { padding-left: 18px; }
-    .instructions li { margin-bottom: 4px; }
+    .expired-wrap {
+      margin-top: 28px; padding: 22px; border-radius: 14px;
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+      text-align: center;
+    }
+    .expired-wrap p { font-size: 0.85rem; color: #fca5a5; margin-bottom: 4px; }
+    .expired-wrap small { font-size: 0.75rem; color: #64748b; }
+
+    hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 26px 0; }
   </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
     <h1>⚡ ZETA</h1>
-    <p>Shadow Garden Bot — Pairing Panel</p>
+    <p>SHADOW GARDEN · PAIRING PANEL</p>
   </div>
 
-  <div style="display:flex;justify-content:center;">
-    <span id="statusBadge" class="status-badge disconnected">
-      <span class="dot" id="dot"></span>
-      <span id="statusText">Checking...</span>
+  <div class="badge-row">
+    <span class="badge disconnected" id="badge">
+      <span class="dot" id="badgeDot"></span>
+      <span id="badgeText">Checking...</span>
     </span>
   </div>
 
-  <div id="pairSection">
-    <label for="phone">WhatsApp Number (with country code)</label>
-    <input id="phone" type="text" placeholder="e.g. 2250716298719" value="" />
-    <button id="startBtn" onclick="startBot()">Generate Pairing Code</button>
-    <p class="msg" id="msg"></p>
-  </div>
+  <section id="secForm">
+    <label for="phoneInput">WhatsApp Number (with country code, no + or spaces)</label>
+    <input id="phoneInput" type="text" placeholder="e.g. 2250716298719" value="${defaultPhone}" autocomplete="off" inputmode="numeric" />
+    <p class="hint-text">Example: Ivory Coast +225 → 2250716298719</p>
+    <button id="startBtn" onclick="startPairing()">Generate Pairing Code</button>
+    <p class="err" id="errMsg"></p>
+  </section>
 
-  <div id="codeSection" style="display:none">
-    <div class="code-box">
-      <div class="label">Enter this code in WhatsApp</div>
-      <div class="code" id="pairingCode">----</div>
-      <div class="hint">
-        On your phone → Linked Devices → Link a Device<br/>
-        → Link with phone number instead → Enter code above
-      </div>
+  <section id="secCode">
+    <div class="code-wrap">
+      <div class="code-label">Enter this code in WhatsApp</div>
+      <div class="code-value" id="codeValue">--------</div>
+      <div class="code-timer">Expires in <span id="codeCountdown">120</span>s</div>
     </div>
-  </div>
-
-  <div id="connectedSection" style="display:none">
-    <div class="connected-box">
-      <div class="icon">✅</div>
-      <div class="name" id="botName">Connected</div>
-      <div class="id" id="botId"></div>
+    <div class="steps">
+      <p>
+        1. Open WhatsApp on <strong>the phone with this number</strong><br/>
+        2. Tap <strong>Linked Devices → Link a Device</strong><br/>
+        3. Tap <strong>"Link with phone number instead"</strong><br/>
+        4. Enter the code above
+      </p>
     </div>
-  </div>
+  </section>
 
-  <hr/>
-  <div class="instructions">
-    <ol>
-      <li>Enter the bot's WhatsApp number above</li>
-      <li>Click <strong>Generate Pairing Code</strong></li>
-      <li>Open WhatsApp on that phone → <em>Linked Devices</em></li>
-      <li>Tap <strong>Link a Device → Link with phone number instead</strong></li>
-      <li>Type the 8-character code shown above</li>
-    </ol>
-  </div>
+  <section id="secExpired">
+    <div class="expired-wrap">
+      <p>⏱️ Pairing code expired — WhatsApp did not receive it in time.</p>
+      <small>Click below to generate a new code.</small>
+    </div>
+    <button onclick="retry()">Try Again</button>
+  </section>
+
+  <section id="secConnected">
+    <div class="connected-wrap">
+      <div class="connected-icon">✅</div>
+      <div class="connected-name" id="connName">Zeta is connected!</div>
+      <div class="connected-id" id="connId"></div>
+    </div>
+    <hr/>
+    <p style="font-size:0.78rem;color:#475569;text-align:center;">The bot is live. You can close this page.</p>
+  </section>
 </div>
 
 <script>
-  let polling = null;
+  var pollTimer = null;
+  var countdownTimer = null;
+  var countdownSecs = 120;
 
-  async function startBot() {
-    const phone = document.getElementById('phone').value.trim();
-    if (!phone) { setMsg('Enter a phone number first'); return; }
-    const btn = document.getElementById('startBtn');
-    btn.disabled = true;
-    setMsg('Starting...');
-    try {
-      const r = await fetch('/api/bot/start', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ phone })
-      });
-      const d = await r.json();
-      if (!d.success) { setMsg(d.message || 'Error'); btn.disabled = false; return; }
-      setMsg('Bot starting — waiting for pairing code...');
-      startPolling();
-    } catch(e) { setMsg('Network error: ' + e.message); btn.disabled = false; }
+  function show(id) {
+    ['secForm','secCode','secExpired','secConnected'].forEach(function(s){
+      document.getElementById(s).className = 'section' + (s === id ? ' visible' : '');
+      document.getElementById(s).style.display = s === id ? 'block' : 'none';
+    });
   }
 
-  function setMsg(t) { document.getElementById('msg').textContent = t; }
+  function setBadge(cls, text, pulse) {
+    var b = document.getElementById('badge');
+    var d = document.getElementById('badgeDot');
+    b.className = 'badge ' + cls;
+    document.getElementById('badgeText').textContent = text;
+    d.className = 'dot' + (pulse ? ' pulse' : '');
+  }
+
+  function setErr(msg) { document.getElementById('errMsg').textContent = msg || ''; }
+
+  function startCountdown() {
+    countdownSecs = 120;
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(function(){
+      countdownSecs--;
+      var el = document.getElementById('codeCountdown');
+      if (el) el.textContent = countdownSecs;
+      if (countdownSecs <= 0) clearInterval(countdownTimer);
+    }, 1000);
+  }
+
+  async function startPairing() {
+    var phone = document.getElementById('phoneInput').value.replace(/\\D/g, '');
+    if (!phone || phone.length < 7) { setErr('Enter a valid phone number.'); return; }
+    var btn = document.getElementById('startBtn');
+    btn.disabled = true;
+    setErr('');
+    setBadge('connecting', 'Starting...', true);
+    try {
+      var r = await fetch('/api/bot/start', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ phone: phone })
+      });
+      var d = await r.json();
+      if (!d.success) {
+        setErr(d.message || 'Failed to start.');
+        btn.disabled = false;
+        setBadge('disconnected', 'Error', false);
+        return;
+      }
+      setBadge('connecting', 'Connecting...', true);
+      startPolling();
+    } catch(e) {
+      setErr('Network error: ' + e.message);
+      btn.disabled = false;
+      setBadge('disconnected', 'Error', false);
+    }
+  }
+
+  function retry() {
+    document.getElementById('startBtn').disabled = false;
+    setErr('');
+    show('secForm');
+    setBadge('disconnected', 'Disconnected', false);
+  }
 
   function startPolling() {
-    if (polling) clearInterval(polling);
-    polling = setInterval(fetchStatus, 2000);
+    clearInterval(pollTimer);
+    pollTimer = setInterval(fetchStatus, 1500);
     fetchStatus();
   }
 
   async function fetchStatus() {
     try {
-      const r = await fetch('/api/bot/status');
-      const d = await r.json();
+      var r = await fetch('/api/bot/status');
+      var d = await r.json();
       updateUI(d);
     } catch(e) {}
   }
 
   function updateUI(d) {
-    const badge  = document.getElementById('statusBadge');
-    const dot    = document.getElementById('dot');
-    const text   = document.getElementById('statusText');
-    const pairSec  = document.getElementById('pairSection');
-    const codeSec  = document.getElementById('codeSection');
-    const connSec  = document.getElementById('connectedSection');
-
     if (d.connected) {
-      badge.className = 'status-badge connected';
-      dot.className = 'dot'; text.textContent = 'Connected';
-      pairSec.style.display = 'none'; codeSec.style.display = 'none';
-      connSec.style.display = 'block';
-      document.getElementById('botName').textContent = d.botName || 'Zeta';
-      document.getElementById('botId').textContent = d.botId || '';
-      if (polling) { clearInterval(polling); polling = null; }
+      clearInterval(pollTimer);
+      clearInterval(countdownTimer);
+      setBadge('connected', 'Connected ✓', false);
+      document.getElementById('connName').textContent = (d.botName || 'Zeta') + ' is connected!';
+      document.getElementById('connId').textContent = d.botId || '';
+      show('secConnected');
+
+    } else if (d.pairingExpired) {
+      clearInterval(pollTimer);
+      clearInterval(countdownTimer);
+      setBadge('expired', 'Code expired', false);
+      show('secExpired');
+
     } else if (d.pairingCode) {
-      badge.className = 'status-badge connecting';
-      dot.className = 'dot pulse'; text.textContent = 'Awaiting pairing...';
-      pairSec.style.display = 'none'; codeSec.style.display = 'block';
-      connSec.style.display = 'none';
-      document.getElementById('pairingCode').textContent = d.pairingCode;
+      setBadge('pairing', 'Awaiting code entry...', true);
+      document.getElementById('codeValue').textContent = d.pairingCode;
+      if (document.getElementById('secCode').style.display !== 'block') {
+        show('secCode');
+        startCountdown();
+      }
+
     } else if (d.connecting) {
-      badge.className = 'status-badge connecting';
-      dot.className = 'dot pulse'; text.textContent = 'Connecting...';
+      setBadge('connecting', 'Connecting...', true);
+
     } else {
-      badge.className = 'status-badge disconnected';
-      dot.className = 'dot'; text.textContent = 'Disconnected';
-      document.getElementById('startBtn').disabled = false;
+      setBadge('disconnected', 'Disconnected', false);
     }
   }
 
+  show('secForm');
   startPolling();
 </script>
 </body>
 </html>`;
+}
 
-router.get("/", (_req, res) => {
+router.get(["/", "/pair"], (req, res) => {
+  const defaultPhone = process.env["BOT_PHONE_NUMBER"] || "";
   res.setHeader("Content-Type", "text/html");
-  res.send(HTML);
-});
-
-router.get("/pair", (_req, res) => {
-  res.setHeader("Content-Type", "text/html");
-  res.send(HTML);
+  res.send(buildHtml(defaultPhone));
 });
 
 export { router as pairRouter };
