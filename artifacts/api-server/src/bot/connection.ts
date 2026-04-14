@@ -91,6 +91,10 @@ function getRememberedPairingPhoneNumber(): string | undefined {
 }
 
 async function askForPairingPhoneNumber(): Promise<string | undefined> {
+  if (!process.stdin.isTTY) {
+    logger.warn("No interactive terminal detected (running on a server/cloud); skipping phone number prompt. Set BOT_PHONE_NUMBER env var to auto-pair.");
+    return undefined;
+  }
   const rl = readline.createInterface({ input, output });
   try {
     const answer = await rl.question("Enter WhatsApp phone number to pair with country code, or press Enter to skip: ");

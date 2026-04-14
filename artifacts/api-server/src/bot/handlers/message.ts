@@ -247,7 +247,7 @@ async function dispatch(ctx: CommandContext): Promise<void> {
       return handleMenu(ctx);
 
     case "ping":
-      await sendText(from, `Alpha's here!\n> ${getPingMs(msg)}ms`);
+      await sendText(from, `Zeta's here!\n> ${getPingMs(msg)}ms`);
       return;
 
     case "uptime": {

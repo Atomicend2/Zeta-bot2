@@ -13,7 +13,7 @@ export async function handleMenu(ctx: CommandContext): Promise<void> {
 ║
 ║ ┌────────────────────
 ║ ║ 👋 𝗛𝗲𝘆 : @${senderName}
-║ ║ 👾 𝗕𝗼𝘁 : Alpha
+║ ║ 👾 𝗕𝗼𝘁 : Zeta
 ║ ║ 👑 𝗖𝗿𝗲𝗮𝘁𝗼𝗿 : Ryuk
 ║ ║ 🔹 𝗣𝗿𝗲𝗳𝗶𝘅 : [ . ]
 ║ └────────────────────
@@ -313,8 +313,8 @@ export async function handleInfo(ctx: CommandContext): Promise<void> {
   const m = Math.floor((uptime % 3600) / 60);
   const s = Math.floor(uptime % 60);
 
-  const info = `🤖 *Alpha Bot — Shadow Garden*\n\n` +
-    `👾 Bot: Alpha\n` +
+  const info = `🤖 *Zeta Bot — Shadow Garden*\n\n` +
+    `👾 Bot: Zeta\n` +
     `👑 Creator: Ryuk\n` +
     `🔹 Prefix: [ . ]\n` +
     `📡 Status: Online ✅\n` +

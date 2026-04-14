@@ -387,7 +387,7 @@ async function getCardImageBuffer(card: any): Promise<Buffer> {
     <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111827"/><stop offset="55%" stop-color="#312e81"/><stop offset="100%" stop-color="#020617"/></linearGradient></defs>
     <rect width="900" height="1260" rx="42" fill="url(#bg)"/>
     <rect x="54" y="54" width="792" height="1152" rx="32" fill="none" stroke="#eab308" stroke-width="10"/>
-    <text x="450" y="210" fill="#f8fafc" font-size="64" font-family="Arial" font-weight="700" text-anchor="middle">ALPHA CARD</text>
+    <text x="450" y="210" fill="#f8fafc" font-size="64" font-family="Arial" font-weight="700" text-anchor="middle">ZETA CARD</text>
     <text x="450" y="560" fill="#fde68a" font-size="82" font-family="Arial" font-weight="700" text-anchor="middle">${escapeSvg(card.name || "Unknown Card")}</text>
     <text x="450" y="680" fill="#dbeafe" font-size="48" font-family="Arial" text-anchor="middle">${escapeSvg(card.series || "General")}</text>
     <text x="450" y="930" fill="#f8fafc" font-size="72" font-family="Arial" font-weight="700" text-anchor="middle">${escapeSvg(card.tier || "T?")}</text>
