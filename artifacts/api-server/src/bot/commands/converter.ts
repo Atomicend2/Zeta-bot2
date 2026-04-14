@@ -15,9 +15,12 @@ export async function handleConverter(ctx: CommandContext): Promise<void> {
   const { from, sender, args, command: cmd, msg, sock } = ctx;
 
   if (cmd === "sticker" || cmd === "s") {
+    const parts = args.join(" ").split(",").map((s) => s.trim()).filter(Boolean);
+    const customPack = parts[0] || DEFAULT_STICKER_PACK;
+    const customName = parts[1] || DEFAULT_STICKER_NAME;
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage || msg.message?.imageMessage;
     if (!quoted?.imageMessage && !quoted?.stickerMessage && !msg.message?.imageMessage) {
-      await sendText(from, "❌ Reply to an image/sticker or send an image with .s caption to make a sticker.");
+      await sendText(from, "❌ Reply to an image/sticker or send an image with .s caption to make a sticker.\n\nTip: .s <pack>, <name> to set custom pack and name.");
       return;
     }
     try {
@@ -37,14 +40,15 @@ export async function handleConverter(ctx: CommandContext): Promise<void> {
       const webp = quoted?.stickerMessage
         ? input
         : await sharp(input, { animated: true })
-          .resize(512, 512, { fit: "cover", position: "centre" })
-          .webp({ quality: 85 })
+          .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 }, position: "centre" })
+          .webp({ quality: 90, lossless: false })
           .toBuffer();
-      const buf = addWebpExif(webp, DEFAULT_STICKER_PACK, DEFAULT_STICKER_NAME);
+      const buf = addWebpExif(webp, customPack, customName);
+      await sendText(from, `🎨 *Sticker Created!*\n📦 Pack: ${customPack}\n✏️ Name: ${customName}`);
       await sock.sendMessage(from, {
         sticker: buf,
-        packname: DEFAULT_STICKER_PACK,
-        author: DEFAULT_STICKER_NAME,
+        packname: customPack,
+        author: customName,
         mimetype: "image/webp",
       });
     } catch (err) {

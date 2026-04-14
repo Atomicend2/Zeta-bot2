@@ -144,6 +144,32 @@ export function getAllCards(tier?: string) {
   return db.prepare("SELECT * FROM cards").all() as any[];
 }
 
+export function getCardsBySeries(series: string) {
+  const db = getDb();
+  return db.prepare(
+    "SELECT * FROM cards WHERE LOWER(series) LIKE ? ORDER BY tier, name"
+  ).all(`%${series.toLowerCase()}%`) as any[];
+}
+
+export function searchCardsByName(name: string) {
+  const db = getDb();
+  return db.prepare(
+    "SELECT * FROM cards WHERE LOWER(name) LIKE ? ORDER BY tier, name"
+  ).all(`%${name.toLowerCase()}%`) as any[];
+}
+
+export function getCardsByNameAndTier(name: string, tier?: string) {
+  const db = getDb();
+  if (tier) {
+    return db.prepare(
+      "SELECT * FROM cards WHERE LOWER(name) = ? AND tier = ? ORDER BY name"
+    ).all(name.toLowerCase(), tier) as any[];
+  }
+  return db.prepare(
+    "SELECT * FROM cards WHERE LOWER(name) LIKE ? ORDER BY tier, name"
+  ).all(`%${name.toLowerCase()}%`) as any[];
+}
+
 export function addCard(card: {
   id: string;
   name: string;

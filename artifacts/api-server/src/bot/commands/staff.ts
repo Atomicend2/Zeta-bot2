@@ -1,6 +1,6 @@
 import type { CommandContext } from "./index.js";
 import { BOT_OWNER_LID, sendText } from "../connection.js";
-import { addStaff, removeStaff, getStaffList, getStaff, ensureUser, getUser, updateUser, getCard, getAllCards, addBan, removeBan, getBanList, setBotSetting, deleteBotSetting, resetUserBalance, resetUserProfile, isBanned } from "../db/queries.js";
+import { addStaff, removeStaff, getStaffList, getStaff, ensureUser, getUser, updateUser, getCard, getAllCards, addBan, removeBan, getBanList, setBotSetting, deleteBotSetting, resetUserBalance, resetUserProfile, isBanned, deleteCard } from "../db/queries.js";
 import { getTierEmoji, isValidTier, generateId } from "../utils.js";
 import { INTERACTION_NAMES, uploadInteractionGif } from "./interactions.js";
 import { getDb } from "../db/database.js";
@@ -328,14 +328,12 @@ export async function handleStaff(ctx: CommandContext): Promise<void> {
   }
 
   if (cmd === "dc") {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo;
     const cardId = args[0];
-    if (!cardId) { await sendText(from, "❌ Provide card ID to delete."); return; }
+    if (!cardId) { await sendText(from, "❌ Usage: .dc <card_id>\nProvide the card ID to delete it from the database."); return; }
     const card = getCard(cardId);
-    if (!card) { await sendText(from, "❌ Card not found."); return; }
-    const { deleteCard } = await import("../db/queries.js");
+    if (!card) { await sendText(from, `❌ Card with ID \`${cardId}\` not found in the database.`); return; }
     deleteCard(cardId);
-    await sendText(from, `✅ Deleted card *${card.name}* (${cardId}).`);
+    await sendText(from, `✅ Card *${card.name}* (${card.tier}) — ID: \`${cardId}\` has been deleted from the database.`);
     return;
   }
 

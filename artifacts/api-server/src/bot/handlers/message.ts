@@ -298,6 +298,8 @@ async function dispatch(ctx: CommandContext): Promise<void> {
     case "setleave":
     case "promote":
     case "demote":
+    case "pm":
+    case "dm":
     case "mute":
     case "unmute":
     case "open":
@@ -316,6 +318,7 @@ async function dispatch(ctx: CommandContext): Promise<void> {
     case "gi":
     case "groupstats":
     case "gs":
+    case "gcl":
       return handleAdmin(ctx);
 
     case "balance":
@@ -397,6 +400,8 @@ async function dispatch(ctx: CommandContext): Promise<void> {
     case "card":
     case "cardinfo":
     case "ci":
+    case "ss":
+    case "sc":
     case "mycollectionseries":
     case "mycolls":
     case "cardleaderboard":

@@ -54,10 +54,13 @@ const ACTIONS: Record<string, { with: string[]; self: string[] }> = {
     with: ["tickles {target}! Hehehe! 😂", "attacks {target}'s weak spot 🤣"],
     self: ["tried to tickle themselves 🤷"],
   },
+  wave: {
+    with: ["waved at {target}! 👋", "sent a friendly wave to {target} 🌊", "greeted {target} with a wave! 👋✨"],
+    self: ["waves hello to everyone! 👋", "waves around cheerfully~ 🌊", "gives a little wave 👋"],
+  },
 };
 
 const SOLO_ACTIONS: Record<string, string[]> = {
-  wave: ["waves hello! 👋", "waves at everyone~ 🌊"],
   dance: ["is dancing! 💃", "starts busting moves! 🕺"],
   sad: ["is feeling sad right now... 😢", "needs some comfort 🥺"],
   smile: ["smiles brightly! 😊", "gives you a warm smile ☺️"],

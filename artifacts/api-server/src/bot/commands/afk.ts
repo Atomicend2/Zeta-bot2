@@ -1,7 +1,7 @@
 import type { CommandContext } from "./index.js";
 import { sendText } from "../connection.js";
 import { setAfk, removeAfk, getAfk } from "../db/queries.js";
-import { timeAgo } from "../utils.js";
+import { timeAgo, timeElapsed } from "../utils.js";
 
 export async function handleAfk(ctx: CommandContext): Promise<void> {
   const { from, sender, args } = ctx;
@@ -19,9 +19,10 @@ export async function checkSenderReturnedFromAfk(
   const senderAfk = getAfk(sender);
   if (!senderAfk) return;
   removeAfk(sender);
-  const elapsed = timeAgo(senderAfk.started_at);
+  const elapsed = timeElapsed(senderAfk.started_at);
+  const name = sender.split("@")[0];
   const msgOpts: any = {
-    text: `👋 @${sender.split("@")[0]} is back! Was AFK for ${elapsed}\n> *${senderAfk.reason}*`,
+    text: `Welcome back, ${name} Senpai! 💫\nYou were AFK for *${elapsed}*\n\nReason: ${senderAfk.reason}`,
     mentions: [sender],
   };
   if (msg) msgOpts.quoted = msg;

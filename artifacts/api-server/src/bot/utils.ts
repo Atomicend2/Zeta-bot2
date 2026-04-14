@@ -35,6 +35,25 @@ export function timeAgo(timestamp: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+export function timeElapsed(timestamp: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - timestamp;
+  if (diff < 60) return `${diff} second${diff !== 1 ? "s" : ""}`;
+  if (diff < 3600) {
+    const m = Math.floor(diff / 60);
+    const s = diff % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m} minute${m !== 1 ? "s" : ""}`;
+  }
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    return m > 0 ? `${h}h ${m}m` : `${h} hour${h !== 1 ? "s" : ""}`;
+  }
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  return h > 0 ? `${d}d ${h}h` : `${d} day${d !== 1 ? "s" : ""}`;
+}
+
 export function parseJid(jid: string): string {
   return jid.split(":")[0].split("@")[0];
 }
