@@ -34,6 +34,7 @@ let pairingCode: string | null = null;
 let pairingExpired = false;
 let reconnectAttempts = 0;
 let connectionGeneration = 0;
+let pairingCodeRequested = false;
 const MAX_RECONNECT_DELAY = 30000;
 const STABLE_CONNECTION_MS = 30000;
 const replyContext = new AsyncLocalStorage<any>();
@@ -65,6 +66,7 @@ export function resetConnection(): void {
   pairingCode = null;
   pairingExpired = false;
   reconnectAttempts = 0;
+  pairingCodeRequested = false;
   connectionGeneration++;
 }
 
@@ -131,24 +133,15 @@ export async function connectToWhatsApp(phoneNumber?: string): Promise<WASocket>
     keepAliveIntervalMs: 30000,
   });
 
-  if (!state.creds.registered) {
-    const phone =
-      (phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined) ||
-      getRememberedPairingPhoneNumber();
+  const pairingPhone =
+    (phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined) ||
+    getRememberedPairingPhoneNumber();
 
-    if (!phone) {
+  if (!state.creds.registered) {
+    if (!pairingPhone) {
       logger.warn("No phone number provided; skipping pairing code request. Use the /pair page to pair.");
     } else {
-      rememberPairingPhoneNumber(phone);
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      try {
-        const code = await sock.requestPairingCode(phone);
-        pairingCode = code;
-        logger.info({ code }, "Pairing code generated — enter it in WhatsApp within 2 minutes");
-        console.log(`\n=== WhatsApp pairing code: ${code} ===\n`);
-      } catch (err) {
-        logger.error({ err }, "Failed to request pairing code");
-      }
+      rememberPairingPhoneNumber(pairingPhone);
     }
   }
 
@@ -162,6 +155,7 @@ export async function connectToWhatsApp(phoneNumber?: string): Promise<WASocket>
       isConnected = false;
       isConnecting = false;
       pairingCode = null;
+      pairingCodeRequested = false;
 
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
       const reason =
@@ -222,6 +216,23 @@ export async function connectToWhatsApp(phoneNumber?: string): Promise<WASocket>
       if (generation !== connectionGeneration) return;
       isConnecting = true;
       logger.info("Connecting to WhatsApp...");
+
+      if (!state.creds.registered && pairingPhone && !pairingCodeRequested) {
+        pairingCodeRequested = true;
+        setTimeout(async () => {
+          if (generation !== connectionGeneration || !sock) return;
+          try {
+            const code = await sock.requestPairingCode(pairingPhone);
+            if (generation === connectionGeneration) {
+              pairingCode = code;
+              logger.info({ code }, "Pairing code generated — enter it in WhatsApp within 2 minutes");
+              console.log(`\n=== WhatsApp pairing code: ${code} ===\n`);
+            }
+          } catch (err) {
+            logger.error({ err }, "Failed to request pairing code");
+          }
+        }, 1500);
+      }
     }
   });
 
